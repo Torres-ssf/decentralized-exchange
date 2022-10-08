@@ -3,7 +3,7 @@ import { ethers } from "hardhat"
 
 describe('Token', () => {
 
-  it('has a name', async () => {
+  it('should ensure name is correct', async () => {
 
     const Token = await ethers.getContractFactory('Token')
 
@@ -11,7 +11,7 @@ describe('Token', () => {
 
     const name = await token.name()
 
-    expect(name).to.be.eq('Token 1')
+    expect(name).to.be.eq('Torres Token')
 
   })
 
