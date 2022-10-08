@@ -22,8 +22,12 @@ describe('Token', () => {
     expect(await token.symbol()).to.be.eq('TT')
   })
 
-  it('should ensure token decimals are 18', async () => {
+  it('should ensure token decimals is 18', async () => {
     expect(await token.decimals()).to.be.eq(18)
   })
 
+  it('should ensure token totalSupply is times 10^24', async () => {
+    const value = ethers.utils.parseUnits('1000000')
+    expect(await token.totalSupply()).to.be.eq(value)
+  })
 })
