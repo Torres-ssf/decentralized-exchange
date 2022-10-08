@@ -3,11 +3,7 @@ module.exports = {
     browser: true,
     es2021: true,
   },
-  extends: [
-    'plugin:react/recommended',
-    'standard-with-typescript',
-    'plugin:prettier/recommended',
-  ],
+  extends: ['plugin:react/recommended', 'plugin:prettier/recommended'],
   overrides: [],
   parserOptions: {
     project: './tsconfig.json',
@@ -18,7 +14,6 @@ module.exports = {
   rules: {
     'prettier/prettier': 'error',
     'react/react-in-jsx-scope': 'off',
-    '@typescript-eslint/triple-slash-reference': 'off',
   },
   settings: {
     react: {
