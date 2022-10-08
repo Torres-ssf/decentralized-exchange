@@ -15,19 +15,15 @@ describe('Token', () => {
   })
 
   it('should ensure token name is correct', async () => {
-
-    const name = await token.name()
-
-    expect(name).to.be.eq('Torres Token')
-
+    expect(await token.name()).to.be.eq('Torres Token')
   })
 
   it('should ensure token symbol is correct', async () => {
+    expect(await token.symbol()).to.be.eq('TT')
+  })
 
-    const symbol = await token.symbol()
-
-    expect(symbol).to.be.eq('TT')
-
+  it('should ensure token decimals are 18', async () => {
+    expect(await token.decimals()).to.be.eq(18)
   })
 
 })

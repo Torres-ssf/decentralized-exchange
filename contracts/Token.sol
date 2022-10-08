@@ -6,4 +6,5 @@ import "hardhat/console.sol";
 contract Token {
     string public name = "Torres Token";
     string public symbol = "TT";
+    uint256 public decimals = 18;
 }
