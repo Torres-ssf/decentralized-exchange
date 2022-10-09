@@ -111,13 +111,35 @@ describe('Token', () => {
     describe('Failure', () => {
 
       it('should rejects insufficient balance', async () => {
-        let invalidAmount = 10
+        let invalidAmount = totalSupply + 1
 
         await expect(
           token
             .connect(deployer)
             .transfer(receiver.address, parseTokenUnits(invalidAmount))
         ).to.be.revertedWith('Not enough tokens')
+      })
+
+      it('should rejects if amount is equal to 0', async () => {
+        let invalidAmount = 0
+
+        await expect(
+          token
+            .connect(deployer)
+            .transfer(receiver.address, parseTokenUnits(invalidAmount))
+        ).to.be.revertedWith('Transfer amount must be greater than zero')
+      })
+
+
+      it('should rejects for invalid receiver address', async () => {
+        let amount = 10
+        let invalidAddress = '0x0000000000000000000000000000000000000000'
+
+        await expect(
+          token
+            .connect(deployer)
+            .transfer(invalidAddress, parseTokenUnits(amount))
+        ).to.be.revertedWith('Invalid receiver address')
       })
 
     })

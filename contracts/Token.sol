@@ -29,7 +29,9 @@ contract Token {
     }
 
     function transfer(address _to, uint256 _value) public returns (bool success) {
+        require(_value > 0, "Transfer amount must be greater than zero");
         require(balanceOf[msg.sender] >= _value, "Not enough tokens");
+        require(_to != address(0), "Invalid receiver address");
 
         balanceOf[msg.sender] -= _value;
         balanceOf[_to] += _value;
