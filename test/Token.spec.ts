@@ -56,27 +56,69 @@ describe('Token', () => {
 
   describe('Sending tokens', () => {
 
-    it('should successfully tranfer tokens', async () => {
+    describe('Success', () => {
 
-      let amount = 100
+      it('should successfully tranfer tokens', async () => {
 
-      let deployerBalance = await token.balanceOf(deployer.address)
-      let receiverBalance = await token.balanceOf(receiver.address)
+        let amount = 100
 
-      expect(deployerBalance).to.be.eq(parseTokenUnits(totalSupply))
-      expect(receiverBalance).to.be.eq(0)
+        let deployerBalance = await token.balanceOf(deployer.address)
+        let receiverBalance = await token.balanceOf(receiver.address)
 
-      const transaction = await token
-        .connect(deployer)
-        .transfer(receiver.address, parseTokenUnits(amount))
+        expect(deployerBalance).to.be.eq(parseTokenUnits(totalSupply))
+        expect(receiverBalance).to.be.eq(0)
 
-      await transaction.wait()
+        const transaction = await token
+          .connect(deployer)
+          .transfer(receiver.address, parseTokenUnits(amount))
 
-      deployerBalance = await token.balanceOf(deployer.address)
-      receiverBalance = await token.balanceOf(receiver.address)
+        const result = await transaction.wait()
 
-      expect(deployerBalance).to.be.eq(parseTokenUnits(totalSupply - amount))
-      expect(receiverBalance).to.be.eq(parseTokenUnits(amount))
+        deployerBalance = await token.balanceOf(deployer.address)
+        receiverBalance = await token.balanceOf(receiver.address)
+
+        expect(deployerBalance).to.be.eq(parseTokenUnits(totalSupply - amount))
+        expect(receiverBalance).to.be.eq(parseTokenUnits(amount))
+
+        expect(result).to.be.ok
+
+      })
+
+      it('should trigger Transfer event', async () => {
+
+        let amount = 99
+
+        const transaction = await token
+          .connect(deployer)
+          .transfer(receiver.address, parseTokenUnits(amount))
+
+        const result = await transaction.wait()
+
+        const { events } = result
+
+        const [triggeredEvent] = events!
+
+        expect(events?.length).to.be.eq(1)
+        expect(triggeredEvent?.event).to.be.eq('Transfer')
+        expect(triggeredEvent?.args!.from).to.be.eq(deployer.address)
+        expect(triggeredEvent?.args!.to).to.be.eq(receiver.address)
+        expect(triggeredEvent?.args!.value).to.be.eq(parseTokenUnits(amount))
+
+      })
+
+    })
+
+    describe('Failure', () => {
+
+      it('should rejects insufficient balance', async () => {
+        let invalidAmount = 10
+
+        await expect(
+          token
+            .connect(deployer)
+            .transfer(receiver.address, parseTokenUnits(invalidAmount))
+        ).to.be.revertedWith('Not enough tokens')
+      })
 
     })
 
