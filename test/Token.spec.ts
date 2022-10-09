@@ -84,7 +84,7 @@ describe('Token', () => {
 
       })
 
-      it('should trigger Transfer event', async () => {
+      it('should emit Transfer event', async () => {
 
         let amount = 99
 
@@ -99,11 +99,10 @@ describe('Token', () => {
         const [triggeredEvent] = events!
 
         expect(events?.length).to.be.eq(1)
-        expect(triggeredEvent?.event).to.be.eq('Transfer')
-        expect(triggeredEvent?.args!.from).to.be.eq(deployer.address)
-        expect(triggeredEvent?.args!.to).to.be.eq(receiver.address)
-        expect(triggeredEvent?.args!.value).to.be.eq(parseTokenUnits(amount))
-
+        expect(triggeredEvent.event).to.be.eq('Transfer')
+        expect(triggeredEvent.args!.from).to.be.eq(deployer.address)
+        expect(triggeredEvent.args!.to).to.be.eq(receiver.address)
+        expect(triggeredEvent.args!.value).to.be.eq(parseTokenUnits(amount))
       })
 
     })
@@ -120,17 +119,6 @@ describe('Token', () => {
         ).to.be.revertedWith('Not enough tokens')
       })
 
-      it('should rejects if amount is equal to 0', async () => {
-        let invalidAmount = 0
-
-        await expect(
-          token
-            .connect(deployer)
-            .transfer(receiver.address, parseTokenUnits(invalidAmount))
-        ).to.be.revertedWith('Transfer amount must be greater than zero')
-      })
-
-
       it('should rejects for invalid receiver address', async () => {
         let amount = 10
         let invalidAddress = '0x0000000000000000000000000000000000000000'
@@ -139,6 +127,59 @@ describe('Token', () => {
           token
             .connect(deployer)
             .transfer(invalidAddress, parseTokenUnits(amount))
+        ).to.be.revertedWith('Invalid receiver address')
+      })
+
+    })
+
+  })
+
+  describe('Approving tokens', () => {
+
+    describe('Success', () => {
+
+      it('should allocates an allowance for delegated token spending', async () => {
+        let amount = parseTokenUnits(100)
+        await token.approve(receiver.address, amount)
+        expect(await token.allowance(deployer.address, receiver.address)).to.be.eq(amount)
+      })
+
+      it('should overwrite current allowance with new value if called again', async () => {
+        let firstAmount = parseTokenUnits(100)
+        let larstAmount = parseTokenUnits(50)
+
+        await token.approve(receiver.address, firstAmount)
+        await token.approve(receiver.address, larstAmount)
+
+        expect(await token.allowance(deployer.address, receiver.address)).to.be.eq(larstAmount)
+      })
+
+
+      it('should emit an Approval event', async () => {
+        let amount = parseTokenUnits(100)
+        const transaction = await token.approve(receiver.address, amount)
+
+        const result = await transaction.wait()
+        const { events } = result
+        const [triggeredEvent] = events!
+
+        expect(events?.length).to.be.eq(1)
+        expect(triggeredEvent.event).to.be.eq('Approval')
+        expect(triggeredEvent.args!.owner).to.be.eq(deployer.address)
+        expect(triggeredEvent.args!.spender).to.be.eq(receiver.address)
+        expect(triggeredEvent.args!.value).to.be.eq(amount)
+      })
+
+    })
+
+    describe('Failure', () => {
+
+      it('should rejects for invalid receiver address', async () => {
+        let amount = parseTokenUnits(100)
+        let invalidAddress = '0x0000000000000000000000000000000000000000'
+
+        await expect(
+          token.approve(invalidAddress, amount)
         ).to.be.revertedWith('Invalid receiver address')
       })
 
