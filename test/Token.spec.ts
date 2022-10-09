@@ -4,30 +4,41 @@ import { Token } from "../typechain-types"
 
 describe('Token', () => {
 
-  let token: Token
+  describe('Deployment', () => {
 
-  before( async () => {
+    let token: Token
 
-    const Token = await ethers.getContractFactory('Token')
+    const name = 'Torres Token'
+    const symbol = 'TT'
+    const decimals = 18
+    const totalSupply = 1000000
 
-    token = await Token.deploy()
+    before( async () => {
+
+      const Token = await ethers.getContractFactory('Token')
+
+      token = await Token.deploy(name, symbol, totalSupply)
+
+    })
+
+    it('should ensure token name is correct', async () => {
+      expect(await token.name()).to.be.eq(name)
+    })
+
+    it('should ensure token symbol is correct', async () => {
+      expect(await token.symbol()).to.be.eq(symbol)
+    })
+
+    it('should ensure token decimals is 18', async () => {
+      expect(await token.decimals()).to.be.eq(decimals)
+    })
+
+    it('should ensure token totalSupply is correct', async () => {
+      const parsedUnits = ethers.utils.parseUnits(String(totalSupply), decimals)
+      expect(await token.totalSupply()).to.be.eq(parsedUnits)
+    })
 
   })
 
-  it('should ensure token name is correct', async () => {
-    expect(await token.name()).to.be.eq('Torres Token')
-  })
 
-  it('should ensure token symbol is correct', async () => {
-    expect(await token.symbol()).to.be.eq('TT')
-  })
-
-  it('should ensure token decimals is 18', async () => {
-    expect(await token.decimals()).to.be.eq(18)
-  })
-
-  it('should ensure token totalSupply is times 10^24', async () => {
-    const value = ethers.utils.parseUnits('1000000')
-    expect(await token.totalSupply()).to.be.eq(value)
-  })
 })
