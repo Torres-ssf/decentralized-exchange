@@ -3,6 +3,7 @@ import { expect } from "chai"
 import { parseUnits } from "ethers/lib/utils"
 import { ethers } from "hardhat"
 import { Token } from "../typechain-types"
+import { parseTokenUnits } from "./utils"
 
 describe('Token', () => {
   const name = 'Torres Token'
@@ -17,15 +18,11 @@ describe('Token', () => {
   let exchange: SignerWithAddress
 
   beforeEach(async () => {
-
     const Token = await ethers.getContractFactory('Token')
-
     token = await Token.deploy(name, symbol, totalSupply)
 
     accounts = await ethers.getSigners();
-
     ([deployer, receiver, exchange] = accounts)
-
   })
 
   describe('Deployment', () => {
@@ -308,9 +305,5 @@ describe('Token', () => {
     })
 
   })
-
-  const parseTokenUnits = (amount: number) => {
-    return parseUnits(String(amount))
-  }
 
 })
