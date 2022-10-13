@@ -113,4 +113,67 @@ describe('Exchange', () => {
 
   })
 
+  describe('Checking balances', () => {
+
+    it('should return the correct user balance', async () => {
+      const randomAmount = Math.floor((Math.random() * 100) + 1)
+      const amount = parseTokenUnits(randomAmount)
+
+      await token1.connect(deployer).approve(exchange.address, amount)
+      await exchange.connect(deployer).depositToken(token1.address, amount)
+
+      expect(await exchange.balanceOf(token1.address, deployer.address)).to.be.eq(amount)
+    })
+
+  })
+
+  describe('Withdrawing', () => {
+
+    describe('Success', () => {
+
+      let amount: BigNumber
+      beforeEach(async () => {
+        amount = parseTokenUnits(100)
+        await token1.transfer(user1.address, amount)
+        await token1.connect(user1).approve(exchange.address, amount)
+        await exchange.connect(user1).depositToken(token1.address, amount)
+      })
+
+      it('should be possible to withdraw tokens', async () => {
+        expect(await token1.balanceOf(exchange.address)).to.be.eq(amount)
+        expect(await exchange.connect(user1).balanceOf(token1.address, user1.address)).to.be.eq(amount)
+        expect(await exchange.connect(user1).withdrawToken(token1.address, amount)).to.be.ok
+        expect(await exchange.connect(user1).balanceOf(token1.address, user1.address)).to.be.eq(0)
+        expect(await token1.balanceOf(exchange.address)).to.be.eq(0)
+      })
+
+      it('should emits a Withdraw event', async () => {
+        const transaction = await exchange.connect(user1).withdrawToken(token1.address, amount)
+        const result = await transaction.wait()
+
+        const { events } = result
+        const [_, tranferEvent] = events!
+        expect(events?.length).to.be.eq(2)
+        expect(tranferEvent.event).to.be.eq('Withdraw')
+        expect(tranferEvent.args!.token).to.be.eq(token1.address)
+        expect(tranferEvent.args!.user).to.be.eq(user1.address)
+        expect(tranferEvent.args!.amount).to.be.eq(amount)
+        expect(tranferEvent.args!.balance).to.be.eq(0)
+      })
+
+    })
+
+    describe('Failure', () => {
+
+      it('should fail for insufficient balance', async () => {
+        await expect(exchange
+          .connect(user1)
+          .withdrawToken(token1.address, parseTokenUnits(100))
+        ).to.be.revertedWith('insufficient balance')
+      })
+
+    })
+
+  })
+
 })

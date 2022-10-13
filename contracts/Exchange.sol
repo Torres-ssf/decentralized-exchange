@@ -17,17 +17,38 @@ contract Exchange {
     uint256 balance
   );
 
+  event Withdraw(
+    address token,
+    address user,
+    uint256 amount,
+    uint256 balance
+  );
+
   constructor(address _feeAccount, uint256 _feePercent) {
     feeAccount = _feeAccount;
     feePercent = _feePercent;
   }
 
-  function depositToken(address _token, uint256 _amount) public {
+  function depositToken(address _token, uint256 _amount) public returns(bool) {
     require(Token(_token).transferFrom(msg.sender, address(this), _amount));
 
     tokens[_token][msg.sender] += _amount;
 
     emit Deposit(_token, msg.sender, _amount, tokens[_token][msg.sender]);
+
+    return true;
+  }
+
+  function withdrawToken(address _token, uint256 _amount) public returns(bool) {
+    require(tokens[_token][msg.sender] >= _amount, 'insufficient balance');
+
+    require(Token(_token).transfer(msg.sender, _amount));
+
+    tokens[_token][msg.sender] -= _amount;
+
+    emit Withdraw(_token, msg.sender, _amount, tokens[_token][msg.sender]);
+
+    return true;
   }
 
   function balanceOf(address _token, address _user) public view returns (uint256) {
@@ -35,9 +56,9 @@ contract Exchange {
   }
 
   // It should be possible to:
-  // 1 - Deposit tokens
-  // 2 - Withdraw tokens
-  // 3 - Check balance
+  // 1 - Deposit tokens - DONE
+  // 2 - Withdraw tokens - DONE
+  // 3 - Check balance - DONE
   // 4 - Make orders
   // 5 - Cancel Orders
   // 6 - Fill Orders
