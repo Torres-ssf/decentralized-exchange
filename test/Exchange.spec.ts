@@ -211,7 +211,7 @@ describe('Exchange', () => {
         expect(order.timestamp).to.be.ok
       })
 
-      it('should emits a MakeOrder event', async () => {
+      it('should emits a OrderCreated event', async () => {
         const transaction = await exchange.connect(user1).makeOrder(
           token2.address,
           parseTokenUnits(50),
@@ -219,13 +219,12 @@ describe('Exchange', () => {
           parseTokenUnits(100),
         )
 
-        await transaction.wait()
         const result = await transaction.wait()
         const { events } = result
         const [makeOrderEvent] = events!
 
         expect(events?.length).to.be.eq(1)
-        expect(makeOrderEvent.event).to.be.eq('OrderCreate')
+        expect(makeOrderEvent.event).to.be.eq('OrderCreated')
       })
 
     })
@@ -239,6 +238,53 @@ describe('Exchange', () => {
           token1.address,
           parseTokenUnits(100),
         )).to.be.revertedWith('insufficient balance')
+      })
+
+    })
+
+  })
+
+  describe('Canceling orders', () => {
+
+    beforeEach(async () => {
+      await token1.connect(deployer).transfer(user1.address, parseTokenUnits(100))
+      await token1.connect(user1).approve(exchange.address, parseTokenUnits(100))
+      await exchange.connect(user1).depositToken(token1.address, parseTokenUnits(100))
+      await exchange.connect(user1).makeOrder(
+        token2.address,
+        parseTokenUnits(50),
+        token1.address,
+        parseTokenUnits(100),
+      )
+    })
+
+    describe('success', () => {
+
+      it('should be possible to cancel an order', async () => {
+        expect(await exchange.connect(user1).canceledOrders(1)).to.not.be.ok
+        await exchange.connect(user1).cancelOrder(1)
+        expect(await exchange.connect(user1).canceledOrders(1)).to.be.ok
+      })
+
+      it('should emits a OrderCanceled event', async () => {
+        const transaction = await exchange.connect(user1).cancelOrder(1)
+        const result = await transaction.wait()
+
+        const { events } = result
+        const [orderCanceled] = events!
+
+        expect(events?.length).to.be.eq(1)
+        expect(orderCanceled.event).to.be.eq('OrderCanceled')
+      })
+
+    })
+
+    describe('failure', () => {
+
+      it('should reverts when user is not the order owner', async () => {
+        await expect(
+          exchange.connect(user2).cancelOrder(1)
+        ).to.be.revertedWith('not authorized')
       })
 
     })

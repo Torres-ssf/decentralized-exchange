@@ -11,6 +11,7 @@ contract Exchange {
   uint256 public orderCount;
   mapping(address => mapping(address => uint256)) public tokens;
   mapping(uint256 => Order) public orders;
+  mapping(uint256 => bool) public canceledOrders;
 
   struct Order {
     uint256 id;
@@ -36,7 +37,17 @@ contract Exchange {
     uint256 balance
   );
 
-  event OrderCreate(
+  event OrderCreated(
+    uint256 id,
+    address user,
+    address tokenGet,
+    uint256 amountGet,
+    address tokenGive,
+    uint256 amountGive,
+    uint256 timestamp
+  );
+
+    event OrderCanceled(
     uint256 id,
     address user,
     address tokenGet,
@@ -99,7 +110,7 @@ contract Exchange {
       timestamp
     );
 
-    emit OrderCreate(
+    emit OrderCreated(
       orderCount,
       msg.sender,
       _tokenGet,
@@ -109,6 +120,24 @@ contract Exchange {
       timestamp
     );
 
+  }
+
+  function cancelOrder(uint256 _id) public {
+    Order storage order = orders[_id];
+
+    require(order.user == msg.sender, 'not authorized');
+
+    canceledOrders[order.id] = true;
+
+    emit OrderCanceled(
+      orderCount,
+      msg.sender,
+      order.tokenGet,
+      order.amountGet,
+      order.tokenGive,
+      order.amountGive,
+      order.timestamp
+    );
   }
 
 }
