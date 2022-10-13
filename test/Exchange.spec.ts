@@ -176,4 +176,73 @@ describe('Exchange', () => {
 
   })
 
+  describe('Making orders', () => {
+
+    describe('success', () => {
+
+      beforeEach(async () => {
+        await token1.connect(deployer).transfer(user1.address, parseTokenUnits(100))
+        await token1.connect(user1).approve(exchange.address, parseTokenUnits(100))
+        await exchange.connect(user1).depositToken(token1.address, parseTokenUnits(100))
+      })
+
+      it('should be possible to make an order', async () => {
+        expect(await exchange.orderCount()).to.be.eq(0)
+
+        const transaction = await exchange.connect(user1).makeOrder(
+          token2.address,
+          parseTokenUnits(50),
+          token1.address,
+          parseTokenUnits(100),
+        )
+
+        await transaction.wait()
+
+        const order = await exchange.orders(1)
+
+        expect(await exchange.orderCount()).to.be.eq(1)
+
+        expect(order.id).to.be.ok
+        expect(order.user).to.be.eq(user1.address)
+        expect(order.tokenGet).to.be.eq(token2.address)
+        expect(order.amountGet).to.be.eq(parseTokenUnits(50))
+        expect(order.tokenGive).to.be.eq(token1.address)
+        expect(order.amountGive).to.be.eq(parseTokenUnits(100))
+        expect(order.timestamp).to.be.ok
+      })
+
+      it('should emits a MakeOrder event', async () => {
+        const transaction = await exchange.connect(user1).makeOrder(
+          token2.address,
+          parseTokenUnits(50),
+          token1.address,
+          parseTokenUnits(100),
+        )
+
+        await transaction.wait()
+        const result = await transaction.wait()
+        const { events } = result
+        const [makeOrderEvent] = events!
+
+        expect(events?.length).to.be.eq(1)
+        expect(makeOrderEvent.event).to.be.eq('OrderCreate')
+      })
+
+    })
+
+    describe('failure', () => {
+
+      it('should reverts for insufficient balance', async () => {
+        await expect(exchange.connect(user1).makeOrder(
+          token2.address,
+          parseTokenUnits(50),
+          token1.address,
+          parseTokenUnits(100),
+        )).to.be.revertedWith('insufficient balance')
+      })
+
+    })
+
+  })
+
 })
