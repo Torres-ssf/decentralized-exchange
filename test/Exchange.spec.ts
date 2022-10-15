@@ -16,7 +16,7 @@ describe('Exchange', () => {
   let user1 : SignerWithAddress
   let user2 : SignerWithAddress
 
-  let feePercent: number
+  const feePercent = 10
 
   let token1Data = {
     name: 'Token1',
@@ -36,7 +36,6 @@ describe('Exchange', () => {
     feeAccount = accounts[1]
     user1 = accounts[2]
     user2 = accounts[3]
-    feePercent = 10
 
     const Exchange = await ethers.getContractFactory('Exchange')
     exchange = await Exchange.deploy(feeAccount.address, feePercent)
@@ -285,6 +284,150 @@ describe('Exchange', () => {
         await expect(
           exchange.connect(user2).cancelOrder(1)
         ).to.be.revertedWith('not authorized')
+      })
+
+    })
+
+  })
+
+  describe('Filling orders', () => {
+
+    let amountGive = parseTokenUnits(100)
+    let amountGet = parseTokenUnits(200)
+
+    let orderFee = amountGet.mul(feePercent).div(100)
+    let orderTotal = amountGet.add(orderFee)
+
+    describe('success', () => {
+
+      beforeEach(async () => {
+        await token1.connect(deployer).transfer(user1.address, amountGive)
+        await token1.connect(user1).approve(exchange.address, amountGive)
+        await exchange.connect(user1).depositToken(token1.address, amountGive)
+        await exchange.connect(user1).makeOrder(
+          token2.address,
+          amountGet,
+          token1.address,
+          amountGive,
+        )
+
+        await token2.connect(deployer).transfer(user2.address, orderTotal)
+        await token2.connect(user2).approve(exchange.address, orderTotal)
+        await exchange.connect(user2).depositToken(token2.address, orderTotal)
+      })
+
+      it('should be possible to fill an order', async () => {
+        expect(await exchange.balanceOf(token1.address, user1.address)).to.be.eq(amountGive)
+        expect(await exchange.balanceOf(token2.address, user1.address)).to.be.eq(0)
+
+        expect(await exchange.balanceOf(token1.address, user2.address)).to.be.eq(0)
+        expect(await exchange.balanceOf(token2.address, user2.address)).to.be.eq(orderTotal)
+
+        await exchange.connect(user2).fillOrder(1)
+
+        expect(await exchange.balanceOf(token1.address, user1.address)).to.be.eq(0)
+        expect(await exchange.balanceOf(token2.address, user1.address)).to.be.eq(amountGet)
+
+        expect(await exchange.balanceOf(token1.address, user2.address)).to.be.eq(amountGive)
+        expect(await exchange.balanceOf(token2.address, user2.address)).to.be.eq(0)
+      })
+
+      it('should ensure order is marked as filled', async () => {
+        expect(await exchange.filledOrders(1)).to.not.be.ok
+        await exchange.connect(user2).fillOrder(1)
+        expect(await exchange.filledOrders(1)).to.be.ok
+      })
+
+      it('should ensure order fee is payed', async () => {
+        expect(await exchange.balanceOf(token2.address, feeAccount.address)).to.be.eq(0)
+        await exchange.connect(user2).fillOrder(1)
+        expect(await exchange
+          .balanceOf(token2.address, feeAccount.address)
+        ).to.be.eq(amountGet.mul(feePercent).div(100))
+      })
+
+      it('should emits a OrderFilled event', async () => {
+        const transaction = await exchange.connect(user2).fillOrder(1)
+        const result = await transaction.wait()
+
+        const { events } = result
+        const [orderFilled] = events!
+
+        expect(events?.length).to.be.eq(1)
+        expect(orderFilled.event).to.be.eq('OrderFilled')
+        expect(orderFilled.args.id).to.be.eq(1)
+        expect(orderFilled.args.user).to.be.eq(user2.address)
+        expect(orderFilled.args.creator).to.be.eq(user1.address)
+        expect(orderFilled.args.tokenGet).to.be.eq(token2.address)
+        expect(orderFilled.args.amountGet).to.be.eq(amountGet)
+        expect(orderFilled.args.tokenGive).to.be.eq(token1.address)
+        expect(orderFilled.args.amountGive).to.be.eq(amountGive)
+        expect(orderFilled.args.timestamp).to.be.ok
+      })
+
+    })
+
+    describe('failure', () => {
+
+      beforeEach(async () => {
+        await token1.connect(deployer).transfer(user1.address, amountGive)
+        await token1.connect(user1).approve(exchange.address, amountGive)
+        await exchange.connect(user1).depositToken(token1.address, amountGive)
+        await exchange.connect(user1).makeOrder(
+          token2.address,
+          amountGet,
+          token1.address,
+          amountGive,
+        )
+
+      })
+
+      it('should ensure order exists', async () => {
+        await expect(
+          exchange.connect(user2).fillOrder(2)
+        ).to.be.revertedWith('order not found')
+      })
+
+      it('should ensure order is not canceled', async () => {
+        await exchange.connect(user1).cancelOrder(1)
+        await expect(
+          exchange.connect(user2).fillOrder(1)
+        ).to.be.revertedWith('order has been canceled')
+      })
+
+      it('should ensure order is not already filled', async () => {
+        await token2.connect(deployer).transfer(user2.address, orderTotal)
+        await token2.connect(user2).approve(exchange.address, orderTotal)
+        await exchange.connect(user2).depositToken(token2.address, orderTotal)
+
+        await exchange.connect(user2).fillOrder(1)
+        expect(await exchange.filledOrders(1)).to.be.ok
+
+        await expect(
+          exchange.connect(user2).fillOrder(1)
+        ).to.be.revertedWith('order is already filled')
+      })
+
+      it('should ensure user cannot fills its own order', async () => {
+        await expect(
+          exchange.connect(user1).fillOrder(1)
+        ).to.be.revertedWith('cannot fill your own order')
+      })
+
+      it('should ensure user has balance to fill order', async () => {
+        await expect(
+          exchange.connect(user2).fillOrder(1)
+        ).to.be.revertedWith('insufficient balance')
+      })
+
+      it('should ensure user has balance to pay fee', async () => {
+        await token2.connect(deployer).transfer(user2.address, amountGet)
+        await token2.connect(user2).approve(exchange.address, amountGet)
+        await exchange.connect(user2).depositToken(token2.address, amountGet)
+
+        await expect(
+          exchange.connect(user2).fillOrder(1)
+        ).to.be.revertedWith('insufficient balance')
       })
 
     })

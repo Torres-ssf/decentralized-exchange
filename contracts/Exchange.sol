@@ -12,6 +12,7 @@ contract Exchange {
   mapping(address => mapping(address => uint256)) public tokens;
   mapping(uint256 => Order) public orders;
   mapping(uint256 => bool) public canceledOrders;
+  mapping(uint256 => bool) public filledOrders;
 
   struct Order {
     uint256 id;
@@ -47,9 +48,20 @@ contract Exchange {
     uint256 timestamp
   );
 
-    event OrderCanceled(
+  event OrderCanceled(
     uint256 id,
     address user,
+    address tokenGet,
+    uint256 amountGet,
+    address tokenGive,
+    uint256 amountGive,
+    uint256 timestamp
+  );
+
+  event OrderFilled(
+    uint256 id,
+    address user,
+    address creator,
     address tokenGet,
     uint256 amountGet,
     address tokenGive,
@@ -123,21 +135,78 @@ contract Exchange {
   }
 
   function cancelOrder(uint256 _id) public {
-    Order storage order = orders[_id];
+    Order storage _order = orders[_id];
 
-    require(order.user == msg.sender, 'not authorized');
+    require(_order.id == _id, 'order not found');
+    require(_order.user == msg.sender, 'not authorized');
 
-    canceledOrders[order.id] = true;
+    canceledOrders[_order.id] = true;
 
     emit OrderCanceled(
       orderCount,
       msg.sender,
-      order.tokenGet,
-      order.amountGet,
-      order.tokenGive,
-      order.amountGive,
-      order.timestamp
+      _order.tokenGet,
+      _order.amountGet,
+      _order.tokenGive,
+      _order.amountGive,
+      _order.timestamp
     );
+  }
+
+  function fillOrder(uint256 _id) public {
+    Order storage _order = orders[_id];
+
+    require(_order.id == _id, 'order not found');
+    require(_order.user != msg.sender, 'cannot fill your own order');
+    require(!canceledOrders[_order.id], 'order has been canceled');
+    require(!filledOrders[_order.id], 'order is already filled');
+
+    _trade(
+      _order.id,
+      _order.user,
+      _order.tokenGet,
+      _order.amountGet,
+      _order.tokenGive,
+      _order.amountGive
+    );
+
+    emit OrderFilled(
+      orderCount,
+      msg.sender,
+      _order.user,
+      _order.tokenGet,
+      _order.amountGet,
+      _order.tokenGive,
+      _order.amountGive,
+      _order.timestamp
+    );
+
+  }
+
+  function _trade(
+    uint256 _orderId,
+    address _user,
+    address _tokenGet,
+    uint256 _amountGet,
+    address _tokenGive,
+    uint256 _amountGive
+  ) internal {
+
+    uint256 _feeAmount = (_amountGet * feePercent) / 100;
+    uint256 _orderTotal = _amountGet + _feeAmount;
+
+    require(balanceOf(_tokenGet, msg.sender) >= _orderTotal, 'insufficient balance');
+
+    tokens[_tokenGet][msg.sender] -= _orderTotal;
+    tokens[_tokenGet][_user] += _amountGet;
+
+    tokens[_tokenGet][feeAccount] += _feeAmount;
+
+    tokens[_tokenGive][_user] -= _amountGive;
+    tokens[_tokenGive][msg.sender] += _amountGive;
+
+    filledOrders[_orderId] = true;
+
   }
 
 }
