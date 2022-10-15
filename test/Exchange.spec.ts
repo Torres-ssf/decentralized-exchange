@@ -255,6 +255,7 @@ describe('Exchange', () => {
         token1.address,
         parseTokenUnits(100),
       )
+
     })
 
     describe('success', () => {
@@ -284,6 +285,31 @@ describe('Exchange', () => {
         await expect(
           exchange.connect(user2).cancelOrder(1)
         ).to.be.revertedWith('not authorized')
+      })
+
+      it('should ensure order exists', async () => {
+        await expect(
+          exchange.connect(user1).cancelOrder(2)
+        ).to.be.revertedWith('order not found')
+      })
+
+      it('should ensure order was already canceled', async () => {
+        await exchange.connect(user1).cancelOrder(1)
+        await expect(
+          exchange.connect(user1).cancelOrder(1)
+        ).to.be.revertedWith('order is already canceled')
+      })
+
+      it('should ensure order is not already filled', async () => {
+        await token2.connect(deployer).transfer(user2.address, parseTokenUnits(100))
+        await token2.connect(user2).approve(exchange.address, parseTokenUnits(100))
+        await exchange.connect(user2).depositToken(token2.address, parseTokenUnits(100))
+
+        await exchange.connect(user2).fillOrder(1)
+
+        await expect(
+          exchange.connect(user1).cancelOrder(1)
+        ).to.be.revertedWith('order was already filled')
       })
 
     })

@@ -139,6 +139,8 @@ contract Exchange {
 
     require(_order.id == _id, 'order not found');
     require(_order.user == msg.sender, 'not authorized');
+    require(!filledOrders[_order.id], 'order was already filled');
+    require(!canceledOrders[_order.id], 'order is already canceled');
 
     canceledOrders[_order.id] = true;
 
