@@ -10,6 +10,7 @@ contract Exchange {
   uint256 public feePercent;
   uint256 public orderCount;
   mapping(address => mapping(address => uint256)) public tokens;
+  mapping(address => mapping(address => uint256)) public tokensInOrders;
   mapping(uint256 => Order) public orders;
   mapping(uint256 => bool) public canceledOrders;
   mapping(uint256 => bool) public filledOrders;
@@ -112,6 +113,9 @@ contract Exchange {
 
     uint256 timestamp = block.timestamp;
 
+    tokens[_tokenGive][msg.sender] -= _amountGive;
+    tokensInOrders[_tokenGive][msg.sender] += _amountGive;
+
     orders[orderCount] = Order(
       orderCount,
       msg.sender,
@@ -143,6 +147,9 @@ contract Exchange {
     require(!canceledOrders[_order.id], 'order is already canceled');
 
     canceledOrders[_order.id] = true;
+
+    tokensInOrders[_order.tokenGive][msg.sender] -= _order.amountGive;
+    tokens[_order.tokenGive][msg.sender] += _order.amountGive;
 
     emit OrderCanceled(
       orderCount,
@@ -204,7 +211,7 @@ contract Exchange {
 
     tokens[_tokenGet][feeAccount] += _feeAmount;
 
-    tokens[_tokenGive][_user] -= _amountGive;
+    tokensInOrders[_tokenGive][_user] -= _amountGive;
     tokens[_tokenGive][msg.sender] += _amountGive;
 
     filledOrders[_orderId] = true;

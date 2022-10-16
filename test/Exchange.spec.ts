@@ -210,6 +210,25 @@ describe('Exchange', () => {
         expect(order.timestamp).to.be.ok
       })
 
+      it('should ensure order tokens are moved to tokens in orders prop', async () => {
+
+        expect(await exchange.tokens(token1.address, user1.address)).to.be.eq(parseTokenUnits(100))
+        expect(await exchange.tokensInOrders(token1.address, user1.address)).to.be.eq(0)
+
+        await exchange
+          .connect(user1)
+          .makeOrder(
+            token2.address,
+            parseTokenUnits(50),
+            token1.address,
+            parseTokenUnits(100),
+          )
+
+        expect(await exchange.tokens(token1.address, user1.address)).to.be.eq(0)
+        expect(await exchange.tokensInOrders(token1.address, user1.address)).to.be.eq(parseTokenUnits(100))
+
+      })
+
       it('should emits a OrderCreated event', async () => {
         const transaction = await exchange.connect(user1).makeOrder(
           token2.address,
@@ -264,6 +283,16 @@ describe('Exchange', () => {
         expect(await exchange.connect(user1).canceledOrders(1)).to.not.be.ok
         await exchange.connect(user1).cancelOrder(1)
         expect(await exchange.connect(user1).canceledOrders(1)).to.be.ok
+      })
+
+      it('should ensure tokens in order are restored to user balance', async () => {
+        expect(await exchange.tokens(token1.address, user1.address)).to.be.eq(0)
+        expect(await exchange.tokensInOrders(token1.address, user1.address)).to.be.eq(parseTokenUnits(100))
+
+        await exchange.connect(user1).cancelOrder(1)
+
+        expect(await exchange.tokensInOrders(token1.address, user1.address)).to.be.eq(0)
+        expect(await exchange.tokens(token1.address, user1.address)).to.be.eq(parseTokenUnits(100))
       })
 
       it('should emits a OrderCanceled event', async () => {
@@ -343,7 +372,7 @@ describe('Exchange', () => {
       })
 
       it('should be possible to fill an order', async () => {
-        expect(await exchange.balanceOf(token1.address, user1.address)).to.be.eq(amountGive)
+        expect(await exchange.tokensInOrders(token1.address, user1.address)).to.be.eq(amountGive)
         expect(await exchange.balanceOf(token2.address, user1.address)).to.be.eq(0)
 
         expect(await exchange.balanceOf(token1.address, user2.address)).to.be.eq(0)
@@ -362,6 +391,14 @@ describe('Exchange', () => {
         expect(await exchange.filledOrders(1)).to.not.be.ok
         await exchange.connect(user2).fillOrder(1)
         expect(await exchange.filledOrders(1)).to.be.ok
+      })
+
+      it('should ensure tokens in orders are removed and not restored to user balance', async () => {
+        expect(await exchange.balanceOf(token1.address, user1.address)).to.be.eq(0)
+        expect(await exchange.tokensInOrders(token1.address, user1.address)).to.be.eq(amountGive)
+        await exchange.connect(user2).fillOrder(1)
+        expect(await exchange.balanceOf(token1.address, user1.address)).to.be.eq(0)
+        expect(await exchange.tokensInOrders(token1.address, user1.address)).to.be.eq(0)
       })
 
       it('should ensure order fee is payed', async () => {
